@@ -1,0 +1,327 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum UserRole {
+  ADMIN
+  AGENT
+}
+
+enum AgentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ConversationStatus {
+  ACTIVE_IA
+  PAUSED
+  CLOSED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  HUMAN_AGENT
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  CANCELLED
+}
+
+enum ChannelType {
+  WHATSAPP
+}
+
+enum KnowledgeSourceType {
+  FAQ
+  GOOGLE_SHEETS
+  DOCUMENT
+}
+
+// ==========================================
+// CORE & TENANT ENTITIES
+// ==========================================
+
+model Organization {
+  id               String            @id @default(uuid())
+  name             String
+  logoUrl          String?
+  currency         String            @default("USD")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+
+  users            User[]
+  agent            Agent?
+  channels         Channel[]
+  customers        Customer[]
+  conversations    Conversation[]
+  products         Product[]
+  orders           Order[]
+  knowledgeSources KnowledgeSource[]
+  integrations     Integration[]
+  usageLogs        UsageLog[]
+  messages         Message[]
+}
+
+model User {
+  id             String         @id @default(uuid())
+  organizationId String
+  name           String
+  email          String         @unique
+  passwordHash   String
+  role           UserRole       @default(AGENT)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversations  Conversation[] // Asignaciones de chats humanos
+
+  @@index([organizationId])
+}
+
+// ==========================================
+// IA & AGENT CONFIGURATION
+// ==========================================
+
+model Agent {
+  id             String         @id @default(uuid())
+  organizationId String         @unique
+  promptBase     String
+  temperature    Decimal        @default(0.1)
+  dailyLimit     Int            @default(100)
+  status         AgentStatus    @default(ACTIVE)
+  version        Int            @default(1)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  versions       AgentVersion[]
+}
+
+model AgentVersion {
+  id             String   @id @default(uuid())
+  agentId        String
+  versionNumber  Int
+  promptSnapshot String
+  createdAt      DateTime @default(now())
+
+  agent          Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, versionNumber])
+  @@index([agentId])
+}
+
+// ==========================================
+// CHANNELS & INTEGRATIONS
+// ==========================================
+
+model Channel {
+  id             String         @id @default(uuid())
+  organizationId String
+  type           ChannelType    @default(WHATSAPP)
+  phoneNumberId  String
+  accessToken    String         // Guardado encriptado a nivel de aplicación
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversations  Conversation[]
+
+  @@index([organizationId])
+}
+
+model Integration {
+  id             String       @id @default(uuid())
+  organizationId String
+  type           String       // "GOOGLE_SHEETS", "OPENROUTER", etc.
+  config         Json         // Parámetros flexibles encriptados o públicos (URL, mapping, etc.)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+// ==========================================
+// CRM & CONVERSATIONS
+// ==========================================
+
+model Customer {
+  id             String         @id @default(uuid())
+  organizationId String
+  phoneNumber    String         // Formato internacional
+  fullName       String?
+  labels         String[]       @default([])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversations  Conversation[]
+  orders         Order[]
+
+  @@unique([organizationId, phoneNumber])
+  @@index([organizationId])
+}
+
+model Conversation {
+  id             String             @id @default(uuid())
+  organizationId String
+  customerId     String
+  channelId      String
+  assignedUserId String?            // Humano asignado al chat cuando está pausado
+  status         ConversationStatus @default(ACTIVE_IA)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Customer           @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  channel        Channel            @relation(fields: [channelId], references: [id], onDelete: Restrict)
+  assignedUser   User?              @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  messages       Message[]
+
+  @@unique([customerId, channelId]) // Un cliente sólo tiene 1 chat activo por cada línea/canal del negocio
+  @@index([organizationId])
+  @@index([assignedUserId])
+  @@index([updatedAt(sort: Desc)])
+}
+
+model Message {
+  id                String       @id @default(uuid())
+  organizationId    String       // Forzado a nivel de fila para aislamiento atómico
+  conversationId    String
+  role              MessageRole
+  content           String
+  providerMessageId String?      @unique // Identificador de WhatsApp Meta (wamid) para deduplicación e historial
+  createdAt         DateTime     @default(now())
+
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([conversationId, createdAt(sort: Desc)])
+}
+
+// ==========================================
+// CATALOGUE & INVENTORY
+// ==========================================
+
+model Product {
+  id             String           @id @default(uuid())
+  organizationId String
+  sku            String
+  name           String
+  description    String?
+  imageUrl       String?
+  price          Decimal
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  variants       ProductVariant[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId])
+}
+
+model ProductVariant {
+  id        String      @id @default(uuid())
+  productId String
+  attributes Json        @default("{}") // Mapeo flexible de atributos (talla, color, voltaje, etc.)
+  stock     Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([productId])
+}
+
+// ==========================================
+// ORDERS & BILLING
+// ==========================================
+
+model Order {
+  id             String       @id @default(uuid())
+  organizationId String
+  customerId     String
+  total          Decimal
+  status         OrderStatus  @default(PENDING)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  items          OrderItem[]
+
+  @@index([organizationId, status])
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id               String         @id @default(uuid())
+  orderId          String
+  productVariantId String
+  quantity         Int
+  priceSnapshot    Decimal        // Congela el precio unitario del producto al momento de la venta
+
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productVariant   ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+}
+
+// ==========================================
+// KNOWLEDGE SOURCES (FAQs, DOCS, ETC)
+// ==========================================
+
+model KnowledgeSource {
+  id             String              @id @default(uuid())
+  organizationId String
+  type           KnowledgeSourceType
+  content        String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, type])
+}
+
+// ==========================================
+// AUDITING & OBSERVABILITY
+// ==========================================
+
+model UsageLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  tokensInput    Int          @default(0) // Control exacto de costes por tipo de token
+  tokensOutput   Int          @default(0)
+  cost           Decimal
+  latencyMs      Int
+  error          String?
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+}
