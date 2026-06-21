@@ -67,6 +67,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       isActive: pathname.startsWith("/dashboard/products"),
     },
     {
+      title: "Integraciones",
+      url: "/dashboard/integrations",
+      icon: <HugeiconsIcon icon={Store01Icon} strokeWidth={2} />,
+      isActive: pathname.startsWith("/dashboard/integrations"),
+    },
+    {
       title: "Clientes",
       url: "/dashboard/customers",
       icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
