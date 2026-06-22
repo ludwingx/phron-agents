@@ -21,9 +21,7 @@ export default function AgentsPage() {
   const [isSaving, setIsSaving] = useState(false)
 
   // Estados del Playground
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", content: "¡Hola! Soy tu agente comercial de pruebas. Escríbeme para ver cómo respondo con tu System Prompt y catálogo actual." }
-  ])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState("")
   const [isTyping, setIsTyping] = useState(false)
 
@@ -84,9 +82,7 @@ export default function AgentsPage() {
   }
 
   const handleResetChat = () => {
-    setMessages([
-      { role: "assistant", content: "Chat de pruebas reiniciado. ¡Escríbeme cuando desees!" }
-    ])
+    setMessages([])
   }
 
   if (isLoading) {
@@ -188,28 +184,37 @@ export default function AgentsPage() {
             </CardHeader>
             
             {/* Mensajes del Playground */}
-            <CardContent className="flex-1 overflow-y-auto space-y-4 pt-4 bg-muted/5">
-              {messages.map((m, idx) => (
-                <div
-                  key={idx}
-                  className={`flex flex-col max-w-[80%] ${
-                    m.role === "user" ? "ml-auto items-end" : "mr-auto"
-                  }`}
-                >
+            <CardContent className="flex-1 overflow-y-auto space-y-4 pt-4 bg-muted/5 flex flex-col justify-end">
+              {messages.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-2 my-auto">
+                  <p className="text-sm font-medium text-muted-foreground">El chat está vacío</p>
+                  <p className="text-xs text-muted-foreground max-w-[250px]">
+                    Envía un primer mensaje (ej: "hola" o "¿tienes pantalones?") para simular la conversación de tu cliente.
+                  </p>
+                </div>
+              ) : (
+                messages.map((m, idx) => (
                   <div
-                    className={`p-3 rounded-lg text-sm ${
-                      m.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-tr-none"
-                        : "bg-muted text-foreground rounded-tl-none border"
+                    key={idx}
+                    className={`flex flex-col max-w-[80%] ${
+                      m.role === "user" ? "ml-auto items-end" : "mr-auto"
                     }`}
                   >
-                    {m.content}
+                    <div
+                      className={`p-3 rounded-lg text-sm ${
+                        m.role === "user"
+                          ? "bg-primary text-primary-foreground rounded-tr-none"
+                          : "bg-muted text-foreground rounded-tl-none border"
+                      }`}
+                    >
+                      {m.content}
+                    </div>
+                    <span className="text-[9px] text-muted-foreground mt-1 px-1">
+                      {m.role === "user" ? "Tú" : "Bot"}
+                    </span>
                   </div>
-                  <span className="text-[9px] text-muted-foreground mt-1 px-1">
-                    {m.role === "user" ? "Tú" : "Bot"}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
               {isTyping && (
                 <div className="mr-auto max-w-[80%] flex flex-col">
                   <div className="p-3 rounded-lg bg-muted text-foreground rounded-tl-none border text-xs italic animate-pulse">

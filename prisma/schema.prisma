@@ -43,6 +43,7 @@ enum OrderStatus {
 
 enum ChannelType {
   WHATSAPP
+  TELEGRAM
 }
 
 enum KnowledgeSourceType {
@@ -133,7 +134,7 @@ model Channel {
   id             String         @id @default(uuid())
   organizationId String
   type           ChannelType    @default(WHATSAPP)
-  phoneNumberId  String
+  phoneNumberId  String?
   accessToken    String         // Guardado encriptado a nivel de aplicación
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
@@ -164,7 +165,8 @@ model Integration {
 model Customer {
   id             String         @id @default(uuid())
   organizationId String
-  phoneNumber    String         // Formato internacional
+  phoneNumber    String?        // Formato internacional
+  telegramId     String?
   fullName       String?
   labels         String[]       @default([])
   createdAt      DateTime       @default(now())
@@ -176,6 +178,7 @@ model Customer {
   orders         Order[]
 
   @@unique([organizationId, phoneNumber])
+  @@unique([organizationId, telegramId])
   @@index([organizationId])
 }
 

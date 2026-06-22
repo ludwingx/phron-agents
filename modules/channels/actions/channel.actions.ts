@@ -13,6 +13,15 @@ export async function getWhatsappChannelAction() {
   }
 }
 
+export async function getTelegramChannelAction() {
+  try {
+    const channel = await ChannelService.getTelegramChannel()
+    return { success: true as const, data: channel }
+  } catch (error: any) {
+    return { success: false as const, error: error.message || "Error al obtener canal de Telegram" }
+  }
+}
+
 export async function updateWhatsappChannelAction(data: {
   phoneNumberId: string
   accessToken: string
@@ -23,6 +32,18 @@ export async function updateWhatsappChannelAction(data: {
     return { success: true }
   } catch (error: any) {
     return { success: false, error: error.message || "Error al actualizar WhatsApp API" }
+  }
+}
+
+export async function updateTelegramChannelAction(data: {
+  accessToken: string
+}): Promise<ActionResponse> {
+  try {
+    await ChannelService.updateTelegramChannel(data)
+    revalidatePath("/dashboard/settings")
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message || "Error al actualizar Telegram Bot API" }
   }
 }
 

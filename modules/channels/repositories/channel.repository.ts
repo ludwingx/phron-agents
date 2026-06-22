@@ -8,6 +8,12 @@ export class ChannelRepository {
     })
   }
 
+  static async getTelegramChannel(organizationId: string) {
+    return prisma.channel.findFirst({
+      where: { organizationId, type: ChannelType.TELEGRAM },
+    })
+  }
+
   static async updateWhatsappChannel(organizationId: string, data: {
     phoneNumberId: string
     accessToken: string
@@ -29,6 +35,29 @@ export class ChannelRepository {
         organizationId,
         type: ChannelType.WHATSAPP,
         phoneNumberId: data.phoneNumberId,
+        accessToken: data.accessToken,
+      },
+    })
+  }
+
+  static async updateTelegramChannel(organizationId: string, data: {
+    accessToken: string
+  }) {
+    const existing = await this.getTelegramChannel(organizationId)
+
+    if (existing) {
+      return prisma.channel.update({
+        where: { id: existing.id },
+        data: {
+          accessToken: data.accessToken,
+        },
+      })
+    }
+
+    return prisma.channel.create({
+      data: {
+        organizationId,
+        type: ChannelType.TELEGRAM,
         accessToken: data.accessToken,
       },
     })

@@ -50,14 +50,17 @@ export async function chatPlaygroundAction(
     const lastUserMessage = messages[messages.length - 1]?.content || ""
 
     // 3. Buscar productos en la base de datos de Prisma que coincidan con la búsqueda
-    // Filtramos palabras vacías o muy cortas para afinar la búsqueda
+    // Filtramos palabras vacías comunes del español que no aportan al filtro de productos
+    const stopWords = new Set(["que", "tiene", "tienen", "tienes", "tuviera", "tuvieras", "stock", "inventario", "catalogo", "catálogo", "hola", "buenas", "días", "tardes", "noches", "este", "esta", "estos", "estas", "unos", "unas", "los", "las", "del", "con", "para", "una", "uno", "algo"])
+    
     const keywords = lastUserMessage.toLowerCase()
       .replace(/[^a-z0-9áéíóúñü ]/g, "")
       .split(" ")
       .map(k => k.trim())
-      .filter(k => k.length > 2)
+      .filter(k => k.length > 1 && !stopWords.has(k))
 
-    // Si la búsqueda es muy genérica, traemos los primeros 10 productos del catálogo
+    // Si la búsqueda no tiene palabras clave específicas (ej: "¿Qué tienes en stock?"),
+    // traemos los primeros 10 productos activos para que el bot pueda ofrecerlos en lugar de decir que no hay nada.
     const matchedProducts = await prisma.product.findMany({
       where: {
         organizationId,
@@ -73,7 +76,13 @@ export async function chatPlaygroundAction(
           }))
         } : {})
       },
-      include: { variants: true },
+      include: {
+        variants: {
+          where: {
+            stock: { gt: 0 } // Traer solo variantes que de verdad tienen stock
+          }
+        }
+      },
       take: 10
     })
 
