@@ -25,11 +25,16 @@ export class AuthRepository {
       // 2. Crear Usuario Administrador
       const user = await tx.user.create({
         data: {
-          organizationId: organization.id,
           name: data.fullName,
           email: data.email,
           passwordHash: data.passwordHash,
           role: UserRole.ADMIN,
+          organization: {
+            connect: { id: organization.id }
+          },
+          organizations: {
+            connect: { id: organization.id }
+          }
         },
       })
 

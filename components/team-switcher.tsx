@@ -20,17 +20,51 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import { UnfoldMoreIcon, PlusSignIcon } from "@hugeicons/core-free-icons"
 
+import { switchOrganizationAction } from "@/modules/auth/actions/tenant.actions"
+import { toast } from "sonner"
+
 export function TeamSwitcher({
   teams,
+  onAddTeam,
 }: {
   teams: {
+    id: string
     name: string
     logo: React.ReactNode
     plan: string
   }[]
+  onAddTeam?: () => void
 }) {
   const { isMobile } = useSidebar()
   const [activeTeam, setActiveTeam] = React.useState(teams[0])
+  const [prevTeams, setPrevTeams] = React.useState(teams)
+
+  const teamsChanged =
+    teams.length !== prevTeams.length ||
+    teams.some((team, index) => team.id !== prevTeams[index]?.id)
+
+  if (teamsChanged) {
+    setPrevTeams(teams)
+    if (teams.length > 0) {
+      setActiveTeam(teams[0])
+    }
+  }
+
+  const handleSwitch = async (team: typeof activeTeam) => {
+    if (team.id === activeTeam?.id) {
+      return
+    }
+    setActiveTeam(team)
+    if (!team.id) return
+
+    const res = await switchOrganizationAction(team.id)
+    if (res.success) {
+      toast.success(`Cambiado al negocio: ${team.name}`)
+      window.location.reload()
+    } else {
+      toast.error(res.error || "Error al cambiar de negocio")
+    }
+  }
 
   if (!activeTeam) {
     return null
@@ -62,13 +96,13 @@ export function TeamSwitcher({
             sideOffset={4}
           >
             <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Teams
+              Negocios
             </DropdownMenuLabel>
             {teams.map((team, index) => (
               <DropdownMenuItem
-                key={team.name}
-                onClick={() => setActiveTeam(team)}
-                className="gap-2 p-2"
+                key={team.id || team.name}
+                onClick={() => handleSwitch(team)}
+                className="gap-2 p-2 cursor-pointer"
               >
                 <div className="flex size-6 items-center justify-center rounded-md border">
                   {team.logo}
@@ -78,11 +112,14 @@ export function TeamSwitcher({
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2">
+            <DropdownMenuItem 
+              onClick={onAddTeam}
+              className="gap-2 p-2 cursor-pointer text-muted-foreground hover:text-foreground"
+            >
               <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                 <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} className="size-4" />
               </div>
-              <div className="font-medium text-muted-foreground">Add team</div>
+              <div className="font-medium">Añadir Negocio</div>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar"
+import { OnboardingModal } from "@/components/onboarding-modal"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,6 +13,8 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { getCurrentSession } from "@/modules/auth/actions/auth.actions"
+import { getCurrentOrganization } from "@/lib/tenant"
+import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 
 export default async function DashboardLayout({
@@ -25,9 +28,32 @@ export default async function DashboardLayout({
     redirect("/login")
   }
 
+  let organization = null
+  let userOrganizations: any[] = []
+  try {
+    const orgRes = await prisma.organization.findMany({
+      where: {
+        users: { some: { id: session.userId } }
+      },
+      select: {
+        id: true,
+        name: true,
+        currency: true,
+        logoUrl: true,
+      }
+    })
+    userOrganizations = orgRes
+
+    organization = await getCurrentOrganization()
+  } catch (e) {
+    // ignorar error
+  }
+
+  const showOnboarding = !organization
+
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar session={session} organization={organization} userOrganizations={userOrganizations} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border/40 bg-background/95 px-4 backdrop-blur">
           <div className="flex items-center gap-2">
@@ -42,10 +68,11 @@ export default async function DashboardLayout({
             </Breadcrumb>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto bg-muted/20 p-6">
+        <main className="flex-1 overflow-y-auto bg-muted/20 p-3 sm:p-6">
           {children}
         </main>
       </SidebarInset>
+      <OnboardingModal isOpen={showOnboarding} />
     </SidebarProvider>
   )
 }

@@ -6,46 +6,78 @@ import {
   updateWhatsappChannelAction,
   getTelegramChannelAction,
   updateTelegramChannelAction,
-  updateOrganizationNameAction,
+  updateOrganizationAction,
+  getCurrentOrganizationAction,
 } from "@/modules/channels/actions/channel.actions"
-import { getCurrentOrganization } from "@/lib/tenant" // O llamando a la metadata local
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { toast } from "sonner"
+import { updateProfileOrCreateAction } from "@/modules/auth/actions/profile.actions"
+import { getCurrentSession } from "@/modules/auth/actions/auth.actions"
 
 export default function SettingsPage() {
   const [orgName, setOrgName] = useState("Mi Comercio")
+  const [currency, setCurrency] = useState("USD")
   const [phoneNumberId, setPhoneNumberId] = useState("")
   const [accessToken, setAccessToken] = useState("")
   const [telegramToken, setTelegramToken] = useState("")
+  
+  // Profile State
+  const [fullName, setFullName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingChannel, setIsSavingChannel] = useState(false)
   const [isSavingTelegram, setIsSavingTelegram] = useState(false)
   const [isSavingOrg, setIsSavingOrg] = useState(false)
-
-  const loadSettings = async () => {
-    setIsLoading(true)
-    
-    // Cargar canal de WhatsApp
-    const resChannel = await getWhatsappChannelAction()
-    if (resChannel.success && resChannel.data) {
-      setPhoneNumberId(resChannel.data.phoneNumberId || "")
-      setAccessToken(resChannel.data.accessToken)
-    }
-
-    // Cargar canal de Telegram
-    const resTelegram = await getTelegramChannelAction()
-    if (resTelegram.success && resTelegram.data) {
-      setTelegramToken(resTelegram.data.accessToken)
-    }
-
-    setIsLoading(false)
-  }
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
 
   useEffect(() => {
+    let active = true
+
+    const loadSettings = async () => {
+      // Cargar canal de WhatsApp
+      const resChannel = await getWhatsappChannelAction()
+      if (!active) return
+      if (resChannel.success && resChannel.data) {
+        setPhoneNumberId(resChannel.data.phoneNumberId || "")
+        setAccessToken(resChannel.data.accessToken)
+      }
+
+      // Cargar canal de Telegram
+      const resTelegram = await getTelegramChannelAction()
+      if (!active) return
+      if (resTelegram.success && resTelegram.data) {
+        setTelegramToken(resTelegram.data.accessToken)
+      }
+
+      // Cargar negocio actual
+      const resOrg = await getCurrentOrganizationAction()
+      if (!active) return
+      if (resOrg.success && resOrg.data) {
+        setOrgName(resOrg.data.name)
+        setCurrency(resOrg.data.currency)
+      }
+
+      // Cargar perfil del usuario actual
+      const session = await getCurrentSession()
+      if (!active) return
+      if (session) {
+        setFullName(session.fullName || "")
+        setEmail(session.email || "")
+      }
+
+      setIsLoading(false)
+    }
+
     loadSettings()
+
+    return () => {
+      active = false
+    }
   }, [])
 
   const handleSaveChannel = async () => {
@@ -87,6 +119,30 @@ export default function SettingsPage() {
     setIsSavingTelegram(false)
   }
 
+  const handleSaveProfile = async () => {
+    if (!fullName.trim() || !email.trim()) {
+      toast.error("Por favor completa los campos de Nombre y Usuario")
+      return
+    }
+
+    setIsSavingProfile(true)
+    const res = await updateProfileOrCreateAction({
+      fullName: fullName.trim(),
+      email: email.trim(),
+      password: password || undefined,
+    })
+
+    if (res.success) {
+      toast.success("Perfil actualizado correctamente")
+      setPassword("") // limpiar contraseña después de guardar
+      // Recargar la página para refrescar los datos del navbar/sidebar
+      window.location.reload()
+    } else {
+      toast.error(res.error)
+    }
+    setIsSavingProfile(false)
+  }
+
   const handleSaveOrg = async () => {
     if (!orgName.trim()) {
       toast.error("El nombre del negocio no puede estar vacío")
@@ -94,9 +150,13 @@ export default function SettingsPage() {
     }
 
     setIsSavingOrg(true)
-    const res = await updateOrganizationNameAction(orgName.trim())
+    const res = await updateOrganizationAction({
+      name: orgName.trim(),
+      currency: currency
+    })
     if (res.success) {
-      toast.success("Nombre del negocio actualizado correctamente")
+      toast.success("Ajustes del negocio actualizados correctamente")
+      window.location.reload()
     } else {
       toast.error(res.error)
     }
@@ -206,7 +266,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Ajustes de Organización */}
-        <Card className="border-border shadow-sm md:col-span-2">
+        <Card className="border-border shadow-sm">
           <CardHeader>
             <CardTitle>Datos de la Organización</CardTitle>
             <CardDescription>
@@ -225,12 +285,74 @@ export default function SettingsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="currency">Moneda Comercial</Label>
-              <Input id="currency" defaultValue="USD ($)" disabled />
+              <select
+                id="currency"
+                className="flex h-9 w-full rounded-md border border-input bg-card text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+              >
+                <option value="USD" className="bg-card text-foreground">Dólar Estadounidense (USD / $)</option>
+                <option value="BOB" className="bg-card text-foreground">Boliviano (BOB / Bs)</option>
+                <option value="ARS" className="bg-card text-foreground">Peso Argentino (ARS / $)</option>
+                <option value="MXN" className="bg-card text-foreground">Peso Mexicano (MXN / $)</option>
+                <option value="CLP" className="bg-card text-foreground">Peso Chileno (CLP / $)</option>
+                <option value="COP" className="bg-card text-foreground">Peso Colombiano (COP / $)</option>
+                <option value="PEN" className="bg-card text-foreground">Sol Peruano (PEN / S/.)</option>
+                <option value="EUR" className="bg-card text-foreground">Euro (EUR / €)</option>
+              </select>
             </div>
 
             <div className="flex justify-end pt-2">
               <Button onClick={handleSaveOrg} disabled={isSavingOrg} variant="outline">
                 {isSavingOrg ? "Guardando..." : "Guardar Cambios"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Ajustes de Perfil de Usuario */}
+        <Card className="border-border shadow-sm">
+          <CardHeader>
+            <CardTitle>Mi Perfil / Cuenta</CardTitle>
+            <CardDescription>
+              Actualiza tus datos personales y credenciales de acceso.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Nombre Completo</Label>
+              <Input 
+                id="fullName" 
+                placeholder="Juan Pérez" 
+                value={fullName} 
+                onChange={(e) => setFullName(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Usuario / Correo Electrónico</Label>
+              <Input 
+                id="email" 
+                placeholder="juan_perez" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Nueva Contraseña (Opcional)</Label>
+              <Input 
+                id="password" 
+                type="password" 
+                placeholder="Dejar vacío para no cambiar" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button onClick={handleSaveProfile} disabled={isSavingProfile}>
+                {isSavingProfile ? "Guardando..." : "Guardar Perfil"}
               </Button>
             </div>
           </CardContent>

@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
+import { OnboardingModal } from "@/components/onboarding-modal"
+
 import {
   Sidebar,
   SidebarContent,
@@ -23,21 +25,56 @@ import {
   Store01Icon
 } from "@hugeicons/core-free-icons"
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const pathname = usePathname()
+interface UserSession {
+  userId: string
+  organizationId: string
+  fullName: string
+  email: string
+  role: string
+}
 
-  // Datos fijos o mock para la organización por defecto si la carga es asíncrona
-  const teamsData = [
-    {
-      name: "Mi Comercio",
-      logo: <HugeiconsIcon icon={Store01Icon} strokeWidth={2} />,
-      plan: "Plan Pro",
-    }
-  ]
+interface OrganizationData {
+  id: string
+  name: string
+  logoUrl: string | null
+  currency: string
+}
+
+export function AppSidebar({ 
+  session, 
+  organization,
+  userOrganizations = [],
+  ...props 
+}: React.ComponentProps<typeof Sidebar> & { 
+  session: UserSession | null
+  organization: OrganizationData | null
+  userOrganizations?: OrganizationData[]
+}) {
+  const pathname = usePathname()
+  const [isNewOrgModalOpen, setIsNewOrgModalOpen] = React.useState(false)
+
+  // Mapear organizaciones de la base de datos o usar valor por defecto
+  const teamsData = userOrganizations.length > 0 
+    ? userOrganizations.map(org => ({
+        id: org.id,
+        name: org.name,
+        logo: <HugeiconsIcon icon={Store01Icon} strokeWidth={2} />,
+        plan: `Moneda: ${org.currency}`,
+      }))
+    : [
+        {
+          id: organization?.id || "",
+          name: organization?.name || "Mi Comercio",
+          logo: <HugeiconsIcon icon={Store01Icon} strokeWidth={2} />,
+          plan: `Moneda: ${organization?.currency || "USD"}`,
+        }
+      ]
+
+  const activeTeam = teamsData.find(t => t.id === organization?.id) || teamsData[0]
 
   const userData = {
-    name: "Administrador",
-    email: "admin@phronagents.com",
+    name: session?.fullName || "Administrador",
+    email: session?.email || "admin@phronagents.com",
     avatar: "",
   }
 
@@ -49,37 +86,37 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       isActive: pathname === "/dashboard",
     },
     {
-      title: "IA Agentes",
+      title: "Chatbot IA",
       url: "/dashboard/agents",
       icon: <HugeiconsIcon icon={RoboticIcon} strokeWidth={2} />,
       isActive: pathname.startsWith("/dashboard/agents"),
     },
     {
-      title: "Inbox Chat",
+      title: "Chats en Vivo",
       url: "/dashboard/conversations",
       icon: <HugeiconsIcon icon={Message01Icon} strokeWidth={2} />,
       isActive: pathname.startsWith("/dashboard/conversations"),
     },
     {
-      title: "Productos",
+      title: "Catálogo de Productos",
       url: "/dashboard/products",
       icon: <HugeiconsIcon icon={ShoppingBagIcon} strokeWidth={2} />,
       isActive: pathname.startsWith("/dashboard/products"),
     },
     {
-      title: "Integraciones",
+      title: "Integraciones / Sheets",
       url: "/dashboard/integrations",
       icon: <HugeiconsIcon icon={Store01Icon} strokeWidth={2} />,
       isActive: pathname.startsWith("/dashboard/integrations"),
     },
     {
-      title: "Clientes",
+      title: "Clientes / Leads",
       url: "/dashboard/customers",
       icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
       isActive: pathname.startsWith("/dashboard/customers"),
     },
     {
-      title: "Ajustes",
+      title: "Configuración",
       url: "/dashboard/settings",
       icon: <HugeiconsIcon icon={Settings05Icon} strokeWidth={2} />,
       isActive: pathname.startsWith("/dashboard/settings"),
@@ -87,17 +124,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   ]
 
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
-        <TeamSwitcher teams={teamsData} />
-      </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={navigationItems} />
-      </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={userData} />
-      </SidebarFooter>
-      <SidebarRail />
-    </Sidebar>
+    <>
+      <Sidebar collapsible="icon" {...props}>
+        <SidebarHeader>
+          <TeamSwitcher teams={teamsData} onAddTeam={() => setIsNewOrgModalOpen(true)} />
+        </SidebarHeader>
+        <SidebarContent>
+          <NavMain items={navigationItems} />
+        </SidebarContent>
+        <SidebarFooter>
+          <NavUser user={userData} />
+        </SidebarFooter>
+        <SidebarRail />
+      </Sidebar>
+      <OnboardingModal isOpen={isNewOrgModalOpen} />
+    </>
   )
 }

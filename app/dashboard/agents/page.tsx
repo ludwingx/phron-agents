@@ -42,6 +42,7 @@ export default function AgentsPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState("")
   const [isTyping, setIsTyping] = useState(false)
+  const [showPlaygroundSidebar, setShowPlaygroundSidebar] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -152,6 +153,9 @@ export default function AgentsPage() {
     if (res.success && res.data) {
       toast.success("Nueva conversación de prueba creada")
       await loadPlaygroundConversations(res.data.id)
+      if (window.innerWidth < 640) {
+        setShowPlaygroundSidebar(false)
+      }
     } else {
       const errorMsg = !res.success ? res.error : "Fallo al crear conversación"
       toast.error(errorMsg)
@@ -159,10 +163,18 @@ export default function AgentsPage() {
   }
 
   const handleSelectConv = (convId: string) => {
-    if (convId === activeConvId) return
+    if (convId === activeConvId) {
+      if (window.innerWidth < 640) {
+        setShowPlaygroundSidebar(false)
+      }
+      return
+    }
     setActiveConvId(convId)
     setMessages([])
     loadMessagesForConv(convId)
+    if (window.innerWidth < 640) {
+      setShowPlaygroundSidebar(false)
+    }
   }
 
   if (isLoading) {
@@ -178,10 +190,10 @@ export default function AgentsPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-          Agente IA
+          Agente de Ventas IA
         </h1>
         <p className="text-muted-foreground mt-1">
-          Configura las reglas de tu vendedor y pruébalo en tiempo real.
+          Configura las instrucciones de tu vendedor virtual y pruébalo en tiempo real.
         </p>
       </div>
 
@@ -267,37 +279,41 @@ export default function AgentsPage() {
 
         {/* ===================== TAB: PLAYGROUND ===================== */}
         <TabsContent value="playground">
-          <div className="flex h-[calc(100vh-240px)] border rounded-xl overflow-hidden bg-card shadow-sm mt-4">
+          <div className="flex h-[calc(100vh-240px)] border rounded-xl overflow-hidden bg-card shadow-sm mt-4 relative">
             {/* ---- Sidebar izquierdo: lista de chats de prueba ---- */}
-            <div className="w-72 border-r flex flex-col bg-muted/10 shrink-0">
-              <div className="p-3 border-b flex items-center justify-between gap-2">
-                <h3 className="font-semibold text-sm truncate">Chats de Prueba</h3>
-                <Button variant="outline" size="sm" className="shrink-0 text-xs h-7 px-2.5" onClick={handleNewChat}>
+            <div className={`transition-all duration-300 ease-in-out border-r flex flex-col bg-card shrink-0 h-full max-sm:absolute max-sm:inset-y-0 max-sm:left-0 max-sm:z-20 ${
+              showPlaygroundSidebar 
+                ? "w-[calc(100%-56px)] sm:w-60 md:w-72 opacity-100 max-sm:translate-x-0 max-sm:shadow-2xl" 
+                : "w-0 sm:w-0 opacity-0 overflow-hidden border-r-0 max-sm:-translate-x-full"
+            }`}>
+              <div className="p-3 border-b flex items-center justify-between gap-2 shrink-0">
+                <h3 className="font-semibold text-xs sm:text-sm truncate">Chats</h3>
+                <Button variant="outline" size="sm" className="shrink-0 text-[10px] sm:text-xs h-7 px-1.5 sm:px-2.5" onClick={handleNewChat}>
                   + Nuevo
                 </Button>
               </div>
               <div className="flex-1 overflow-y-auto">
                 {playgroundConvs.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-muted-foreground">
-                    No hay chats de prueba aún.
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    Vacío
                   </div>
                 ) : (
                   playgroundConvs.map((conv) => (
                     <div
                       key={conv.id}
                       onClick={() => handleSelectConv(conv.id)}
-                      className={`px-3 py-3 cursor-pointer border-b border-border/30 transition-colors ${
+                      className={`px-3 py-2 cursor-pointer border-b border-border/30 transition-colors ${
                         activeConvId === conv.id
                           ? "bg-muted"
                           : "hover:bg-muted/50"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium truncate">
+                        <span className="text-xs sm:text-sm font-medium truncate">
                           {conv.customer.fullName || "Chat de Prueba"}
                         </span>
                       </div>
-                      <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                      <span className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 block">
                         {new Date(conv.updatedAt).toLocaleString("es-ES", {
                           dateStyle: "short",
                           timeStyle: "short",
@@ -310,24 +326,59 @@ export default function AgentsPage() {
             </div>
 
             {/* ---- Panel derecho: área de chat ---- */}
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 h-full relative">
+              {showPlaygroundSidebar && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-2.5 top-3 z-30 h-8 w-8 sm:hidden"
+                  onClick={() => setShowPlaygroundSidebar(false)}
+                  title="Cerrar chats"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="M9 3v18" />
+                    <path d="m16 15-3-3 3-3" />
+                  </svg>
+                </Button>
+              )}
+
               {activeConvId ? (
                 <>
                   {/* Header del chat */}
-                  <div className="p-3 border-b flex items-center justify-between bg-muted/5">
-                    <div>
-                      <h3 className="font-bold text-sm">
-                        {playgroundConvs.find((c) => c.id === activeConvId)?.customer.fullName || "Chat de Prueba"}
-                      </h3>
-                      <span className="text-[11px] text-muted-foreground">Conversación de prueba del Playground</span>
+                  <div className="p-3 border-b flex items-center justify-between bg-muted/5 gap-2 shrink-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-8 w-8 shrink-0 ${showPlaygroundSidebar ? "max-sm:hidden" : ""}`}
+                        onClick={() => setShowPlaygroundSidebar(!showPlaygroundSidebar)}
+                        title={showPlaygroundSidebar ? "Ocultar chats" : "Mostrar chats"}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect width="18" height="18" x="3" y="3" rx="2" />
+                          <path d="M9 3v18" />
+                          {showPlaygroundSidebar ? (
+                            <path d="m16 15-3-3 3-3" />
+                          ) : (
+                            <path d="m13 9 3 3-3 3" />
+                          )}
+                        </svg>
+                      </Button>
+                      <div className={`truncate ${showPlaygroundSidebar ? "max-sm:hidden" : ""}`}>
+                        <h3 className="font-bold text-sm truncate">
+                          {playgroundConvs.find((c) => c.id === activeConvId)?.customer.fullName || "Chat de Prueba"}
+                        </h3>
+                        <span className="text-[11px] text-muted-foreground block truncate">Conversación de prueba del Playground</span>
+                      </div>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-500 border border-violet-500/20 font-bold">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-500 border border-violet-500/20 font-bold shrink-0 ${showPlaygroundSidebar ? "max-sm:hidden" : ""}`}>
                       PLAYGROUND
                     </span>
                   </div>
 
                   {/* Mensajes */}
-                  <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-muted/5">
+                  <div className={`flex-1 p-4 overflow-y-auto space-y-4 bg-muted/5 ${showPlaygroundSidebar ? "max-sm:hidden" : ""}`}>
                     {messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-center space-y-2">
                         <div className="w-12 h-12 rounded-full bg-violet-500/10 flex items-center justify-center mb-2">
@@ -372,7 +423,7 @@ export default function AgentsPage() {
                   </div>
 
                   {/* Input */}
-                  <form onSubmit={handleSendMessage} className="p-3 border-t flex gap-2 bg-card">
+                  <form onSubmit={handleSendMessage} className={`p-3 border-t flex gap-2 bg-card ${showPlaygroundSidebar ? "max-sm:hidden" : ""}`}>
                     <Input
                       placeholder="Escribe como si fueras un cliente..."
                       value={inputText}

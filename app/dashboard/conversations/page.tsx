@@ -118,18 +118,18 @@ export default function ConversationsPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-140px)] border rounded-xl overflow-hidden bg-card shadow-sm">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-140px)] border rounded-xl overflow-hidden bg-card shadow-sm">
       {/* Columna 1: Listado de Chats */}
-      <div className="w-1/3 border-r flex flex-col bg-muted/10">
-        <div className="p-4 border-b">
-          <h2 className="font-bold text-lg">Inbox de Chats</h2>
-          <p className="text-xs text-muted-foreground mt-1">Conexión con WhatsApp Business API</p>
+      <div className="w-full md:w-80 border-b md:border-b-0 md:border-r flex flex-col bg-muted/10 shrink-0 max-h-[200px] md:max-h-none">
+        <div className="p-3 md:p-4 border-b">
+          <h2 className="font-bold text-base md:text-lg">Inbox de Chats</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Conexión con WhatsApp Business API</p>
         </div>
         <div className="flex-1 overflow-y-auto divide-y">
           {isLoading && conversations.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">Cargando chats...</div>
           ) : conversations.length === 0 ? (
-            <div className="p-8 text-center text-xs text-muted-foreground">
+            <div className="p-6 md:p-8 text-center text-xs text-muted-foreground">
               Sin conversaciones de clientes por el momento.
             </div>
           ) : (
@@ -137,16 +137,16 @@ export default function ConversationsPage() {
               <div
                 key={conv.id}
                 onClick={() => handleSelectConversation(conv)}
-                className={`p-4 cursor-pointer transition-colors ${
+                className={`p-3 md:p-4 cursor-pointer transition-colors ${
                   activeConv?.id === conv.id ? "bg-muted" : "hover:bg-muted/50"
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-sm truncate">
                     {conv.customer.fullName || "Cliente Anónimo"}
                   </span>
                   <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                    className={`text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0 ${
                       conv.status === "ACTIVE_IA"
                         ? "bg-violet-500/10 text-violet-500 border border-violet-500/20"
                         : "bg-amber-500/10 text-amber-500 border border-amber-500/20"

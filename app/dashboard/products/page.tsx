@@ -152,16 +152,16 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
             Catálogo de Productos
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm">
             Administra tus artículos, stock y variantes disponibles para el vendedor de IA.
           </p>
         </div>
-        <Button onClick={handleOpenCreate}>Nuevo Producto</Button>
+        <Button onClick={handleOpenCreate} className="shrink-0 w-full sm:w-auto">Nuevo Producto</Button>
       </div>
 
       {isLoading && products.length === 0 ? (
@@ -178,7 +178,7 @@ export default function ProductsPage() {
           <Button onClick={handleOpenCreate}>Crear tu primer producto</Button>
         </div>
       ) : (
-        <div className="rounded-xl border border-border/40 bg-card overflow-hidden shadow-sm">
+        <div className="rounded-xl border border-border/40 bg-card overflow-hidden shadow-sm overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -196,16 +196,26 @@ export default function ProductsPage() {
                   <td className="p-4 font-medium">{product.name}</td>
                   <td className="p-4 font-semibold text-primary">${product.price.toFixed(2)}</td>
                   <td className="p-4">
-                    <div className="flex flex-wrap gap-2">
-                      {product.variants.map((v, idx) => (
-                        <span
-                          key={v.id || idx}
-                          className="inline-flex items-center gap-1 rounded bg-muted/80 px-2 py-1 text-xs font-medium border border-border"
-                        >
-                          {Object.entries(v.attributes).map(([k, val]) => `${k}:${val}`).join(", ") || "Único"}
-                          <span className="text-muted-foreground font-semibold">({v.stock} uds)</span>
-                        </span>
-                      ))}
+                    <div className="flex flex-wrap gap-1.5">
+                      {product.variants.map((v, idx) => {
+                        const label = Object.values(v.attributes).join(" / ") || "Único"
+                        const stockColor = v.stock > 5
+                          ? "text-emerald-600 bg-emerald-500/10"
+                          : v.stock > 0
+                            ? "text-amber-600 bg-amber-500/10"
+                            : "text-red-500 bg-red-500/10"
+                        return (
+                          <span
+                            key={v.id || idx}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-muted/60 px-2.5 py-1 text-xs border border-border/50"
+                          >
+                            <span className="font-medium">{label}</span>
+                            <span className={`font-bold text-[11px] rounded px-1 py-0.5 ${stockColor}`}>
+                              {v.stock > 0 ? `Stock: ${v.stock}` : "Agotado"}
+                            </span>
+                          </span>
+                        )
+                      })}
                     </div>
                   </td>
                   <td className="p-4 text-right space-x-2">

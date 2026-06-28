@@ -65,7 +65,8 @@ model Organization {
   updatedAt        DateTime          @updatedAt
   deletedAt        DateTime?
 
-  users            User[]
+  activeUsers      User[]            @relation("ActiveOrganization")
+  users            User[]            @relation("UserOrganizations")
   agent            Agent?
   channels         Channel[]
   customers        Customer[]
@@ -80,7 +81,7 @@ model Organization {
 
 model User {
   id             String         @id @default(uuid())
-  organizationId String
+  organizationId String?
   name           String
   email          String         @unique
   passwordHash   String
@@ -88,7 +89,8 @@ model User {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization?  @relation("ActiveOrganization", fields: [organizationId], references: [id], onDelete: SetNull)
+  organizations  Organization[] @relation("UserOrganizations")
   conversations  Conversation[] // Asignaciones de chats humanos
 
   @@index([organizationId])

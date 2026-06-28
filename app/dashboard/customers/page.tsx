@@ -141,23 +141,23 @@ export default function CustomersPage() {
   const filteredCustomers = customers.filter((c) => {
     const search = searchQuery.toLowerCase()
     const nameMatch = c.fullName?.toLowerCase().includes(search)
-    const phoneMatch = c.phoneNumber.includes(search)
+    const phoneMatch = c.phoneNumber?.includes(search)
     const labelMatch = c.labels.some((l) => l.toLowerCase().includes(search))
     return nameMatch || phoneMatch || labelMatch
   })
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
             Directorio de Clientes (CRM)
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Visualiza e interactúa con los contactos capturados por tus agentes conversacionales en WhatsApp.
+          <p className="text-muted-foreground mt-1 text-sm">
+            Visualiza e interactúa con los contactos capturados por tus agentes conversacionales.
           </p>
         </div>
-        <Button onClick={handleOpenCreate}>Nuevo Cliente</Button>
+        <Button onClick={handleOpenCreate} className="shrink-0 w-full sm:w-auto">Nuevo Cliente</Button>
       </div>
 
       {/* Caja de Búsqueda */}
@@ -185,7 +185,7 @@ export default function CustomersPage() {
           )}
         </div>
       ) : (
-        <div className="rounded-xl border border-border/40 bg-card overflow-hidden shadow-sm">
+        <div className="rounded-xl border border-border/40 bg-card overflow-hidden shadow-sm overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">

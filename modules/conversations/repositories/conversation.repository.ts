@@ -4,7 +4,16 @@ import { ConversationStatus, MessageRole } from "@prisma/client"
 export class ConversationRepository {
   static async listConversations(organizationId: string) {
     return prisma.conversation.findMany({
-      where: { organizationId },
+      where: { 
+        organizationId,
+        customer: {
+          NOT: {
+            labels: {
+              has: "playground",
+            },
+          },
+        },
+      },
       include: {
         customer: true,
         channel: true,

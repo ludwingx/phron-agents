@@ -10,6 +10,7 @@ const JWT_SECRET = new TextEncoder().encode(
 export interface UserSessionPayload {
   userId: string
   email: string
+  fullName: string
   organizationId: string
   role: string
 }
@@ -56,6 +57,7 @@ export class AuthService {
     const token = await this.generateToken({
       userId: user.id,
       email: user.email,
+      fullName: user.name,
       organizationId: organization.id,
       role: user.role,
     })
@@ -77,6 +79,7 @@ export class AuthService {
     const token = await this.generateToken({
       userId: user.id,
       email: user.email,
+      fullName: user.name,
       organizationId: user.organizationId,
       role: user.role,
     })
