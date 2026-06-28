@@ -39,7 +39,7 @@ export async function updateProfileOrCreateAction(formData: {
       userId: updatedUser.id,
       email: updatedUser.email,
       fullName: updatedUser.name,
-      organizationId: updatedUser.organizationId,
+      organizationId: updatedUser.organizationId || "",
       role: updatedUser.role,
     })
 

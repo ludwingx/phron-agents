@@ -2,8 +2,8 @@ import { z } from "zod"
 
 export const productVariantValidator = z.object({
   id: z.string().optional(),
-  attributes: z.record(z.string(), z.string()).default({}), // Ej: {"talla": "42", "color": "Negro"}
-  stock: z.number().int().nonnegative("El stock no puede ser negativo").default(0),
+  attributes: z.record(z.string(), z.string()), // Ej: {"talla": "42", "color": "Negro"}
+  stock: z.number().int().nonnegative("El stock no puede ser negativo"),
 })
 
 export const productValidator = z.object({

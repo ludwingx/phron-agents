@@ -2,10 +2,6 @@
 
 import { useEffect, useState } from "react"
 import {
-  getWhatsappChannelAction,
-  updateWhatsappChannelAction,
-  getTelegramChannelAction,
-  updateTelegramChannelAction,
   updateOrganizationAction,
   getCurrentOrganizationAction,
 } from "@/modules/channels/actions/channel.actions"
@@ -20,9 +16,6 @@ import { getCurrentSession } from "@/modules/auth/actions/auth.actions"
 export default function SettingsPage() {
   const [orgName, setOrgName] = useState("Mi Comercio")
   const [currency, setCurrency] = useState("USD")
-  const [phoneNumberId, setPhoneNumberId] = useState("")
-  const [accessToken, setAccessToken] = useState("")
-  const [telegramToken, setTelegramToken] = useState("")
   
   // Profile State
   const [fullName, setFullName] = useState("")
@@ -30,8 +23,6 @@ export default function SettingsPage() {
   const [password, setPassword] = useState("")
   
   const [isLoading, setIsLoading] = useState(true)
-  const [isSavingChannel, setIsSavingChannel] = useState(false)
-  const [isSavingTelegram, setIsSavingTelegram] = useState(false)
   const [isSavingOrg, setIsSavingOrg] = useState(false)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
 
@@ -39,21 +30,6 @@ export default function SettingsPage() {
     let active = true
 
     const loadSettings = async () => {
-      // Cargar canal de WhatsApp
-      const resChannel = await getWhatsappChannelAction()
-      if (!active) return
-      if (resChannel.success && resChannel.data) {
-        setPhoneNumberId(resChannel.data.phoneNumberId || "")
-        setAccessToken(resChannel.data.accessToken)
-      }
-
-      // Cargar canal de Telegram
-      const resTelegram = await getTelegramChannelAction()
-      if (!active) return
-      if (resTelegram.success && resTelegram.data) {
-        setTelegramToken(resTelegram.data.accessToken)
-      }
-
       // Cargar negocio actual
       const resOrg = await getCurrentOrganizationAction()
       if (!active) return
@@ -79,45 +55,6 @@ export default function SettingsPage() {
       active = false
     }
   }, [])
-
-  const handleSaveChannel = async () => {
-    if (!phoneNumberId.trim() || !accessToken.trim()) {
-      toast.error("Por favor completa los campos del canal de WhatsApp")
-      return
-    }
-
-    setIsSavingChannel(true)
-    const res = await updateWhatsappChannelAction({
-      phoneNumberId,
-      accessToken,
-    })
-
-    if (res.success) {
-      toast.success("Credenciales de WhatsApp Cloud API vinculadas correctamente")
-    } else {
-      toast.error(res.error)
-    }
-    setIsSavingChannel(false)
-  }
-
-  const handleSaveTelegram = async () => {
-    if (!telegramToken.trim()) {
-      toast.error("Por favor ingresa el Token de API de tu bot de Telegram")
-      return
-    }
-
-    setIsSavingTelegram(true)
-    const res = await updateTelegramChannelAction({
-      accessToken: telegramToken,
-    })
-
-    if (res.success) {
-      toast.success("Token de Telegram Bot API vinculado correctamente")
-    } else {
-      toast.error(res.error)
-    }
-    setIsSavingTelegram(false)
-  }
 
   const handleSaveProfile = async () => {
     if (!fullName.trim() || !email.trim()) {
@@ -168,8 +105,8 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <div className="h-10 w-1/3 animate-pulse rounded-lg bg-muted/60" />
         <div className="grid gap-6 md:grid-cols-2">
-          <div className="h-[300px] animate-pulse rounded-lg bg-muted/60" />
-          <div className="h-[300px] animate-pulse rounded-lg bg-muted/60" />
+          <div className="h-[250px] animate-pulse rounded-lg bg-muted/60" />
+          <div className="h-[250px] animate-pulse rounded-lg bg-muted/60" />
         </div>
       </div>
     )
@@ -179,92 +116,14 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-          Configuración del Sistema
+          Configuración General
         </h1>
         <p className="text-muted-foreground mt-1">
-          Administra las conexiones de canales de WhatsApp y Telegram, tokens de APIs y ajustes del negocio.
+          Administra los datos generales de tu organización y actualiza los detalles de tu cuenta.
         </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Conexión WhatsApp Cloud API */}
-        <Card className="border-border shadow-sm transition-all duration-200 hover:shadow-md">
-          <CardHeader>
-            <CardTitle>Canal: WhatsApp Cloud API</CardTitle>
-            <CardDescription>
-              Conecta tu número oficial a través de la consola de desarrolladores de Meta (Meta for Developers).
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="phoneId">Identificador de Teléfono Comercial (Phone Number ID)</Label>
-              <Input 
-                id="phoneId" 
-                placeholder="105847395729185" 
-                value={phoneNumberId}
-                onChange={(e) => setPhoneNumberId(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="token">Token de Acceso Temporal / Permanente</Label>
-              <Input 
-                id="token" 
-                type="password" 
-                placeholder="EAAGb3... (Encriptado al guardar)" 
-                value={accessToken}
-                onChange={(e) => setAccessToken(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Dirección de Webhook para Meta</Label>
-              <Input value="https://phronagents.com/api/webhooks/whatsapp" disabled />
-              <p className="text-xs text-muted-foreground">Copia esta URL en tu consola de Meta App para recibir los mensajes en vivo.</p>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <Button onClick={handleSaveChannel} disabled={isSavingChannel}>
-                {isSavingChannel ? "Vinculando..." : "Vincular Número"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Conexión Telegram Bot API */}
-        <Card className="border-border shadow-sm transition-all duration-200 hover:shadow-md">
-          <CardHeader>
-            <CardTitle>Canal: Telegram Bot</CardTitle>
-            <CardDescription>
-              Conecta tu bot de Telegram enviando tus credenciales obtenidas desde BotFather.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="telegramToken">Token de API de Telegram Bot (API Key)</Label>
-              <Input 
-                id="telegramToken" 
-                type="password" 
-                placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ... (Encriptado)" 
-                value={telegramToken}
-                onChange={(e) => setTelegramToken(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Dirección de Webhook para Telegram</Label>
-              <Input value="https://phronagents.com/api/webhooks/telegram" disabled />
-              <p className="text-xs text-muted-foreground">Usa esta dirección si deseas configurar manualmente el Webhook del Bot.</p>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <Button onClick={handleSaveTelegram} disabled={isSavingTelegram} className="bg-sky-600 hover:bg-sky-700 text-white">
-                {isSavingTelegram ? "Vinculando..." : "Vincular Bot de Telegram"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Ajustes de Organización */}
         <Card className="border-border shadow-sm">
           <CardHeader>

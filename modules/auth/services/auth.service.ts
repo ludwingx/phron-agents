@@ -80,7 +80,7 @@ export class AuthService {
       userId: user.id,
       email: user.email,
       fullName: user.name,
-      organizationId: user.organizationId,
+      organizationId: user.organizationId || "",
       role: user.role,
     })
 

@@ -15,12 +15,12 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { 
-  LayoutBottomIcon, 
-  Settings05Icon, 
-  UserGroupIcon, 
-  Message01Icon, 
-  ShoppingBagIcon, 
+import {
+  LayoutBottomIcon,
+  Settings05Icon,
+  UserGroupIcon,
+  Message01Icon,
+  ShoppingBagIcon,
   RoboticIcon,
   Store01Icon
 } from "@hugeicons/core-free-icons"
@@ -40,12 +40,12 @@ interface OrganizationData {
   currency: string
 }
 
-export function AppSidebar({ 
-  session, 
+export function AppSidebar({
+  session,
   organization,
   userOrganizations = [],
-  ...props 
-}: React.ComponentProps<typeof Sidebar> & { 
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
   session: UserSession | null
   organization: OrganizationData | null
   userOrganizations?: OrganizationData[]
@@ -54,21 +54,21 @@ export function AppSidebar({
   const [isNewOrgModalOpen, setIsNewOrgModalOpen] = React.useState(false)
 
   // Mapear organizaciones de la base de datos o usar valor por defecto
-  const teamsData = userOrganizations.length > 0 
+  const teamsData = userOrganizations.length > 0
     ? userOrganizations.map(org => ({
-        id: org.id,
-        name: org.name,
-        logo: <HugeiconsIcon icon={Store01Icon} strokeWidth={2} />,
-        plan: `Moneda: ${org.currency}`,
-      }))
+      id: org.id,
+      name: org.name,
+      logo: <HugeiconsIcon icon={Store01Icon} strokeWidth={2} />,
+      plan: `Moneda: ${org.currency}`,
+    }))
     : [
-        {
-          id: organization?.id || "",
-          name: organization?.name || "Mi Comercio",
-          logo: <HugeiconsIcon icon={Store01Icon} strokeWidth={2} />,
-          plan: `Moneda: ${organization?.currency || "USD"}`,
-        }
-      ]
+      {
+        id: organization?.id || "",
+        name: organization?.name || "Mi Comercio",
+        logo: <HugeiconsIcon icon={Store01Icon} strokeWidth={2} />,
+        plan: `Moneda: ${organization?.currency || "USD"}`,
+      }
+    ]
 
   const activeTeam = teamsData.find(t => t.id === organization?.id) || teamsData[0]
 
@@ -104,7 +104,7 @@ export function AppSidebar({
       isActive: pathname.startsWith("/dashboard/products"),
     },
     {
-      title: "Integraciones / Sheets",
+      title: "Integraciones",
       url: "/dashboard/integrations",
       icon: <HugeiconsIcon icon={Store01Icon} strokeWidth={2} />,
       isActive: pathname.startsWith("/dashboard/integrations"),
