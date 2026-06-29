@@ -11,6 +11,7 @@ import {
   deleteProductAction,
 } from "@/modules/products/actions/product.actions"
 import { toast } from "sonner"
+import { getCurrentOrganizationAction } from "@/modules/channels/actions/channel.actions"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -49,6 +50,7 @@ export default function ProductsPage() {
   // Variantes temporales para la creación interactiva de atributos
   const [attrKey, setAttrKey] = useState("")
   const [attrValue, setAttrValue] = useState("")
+  const [currency, setCurrency] = useState("USD")
 
   const {
     register,
@@ -88,7 +90,30 @@ export default function ProductsPage() {
 
   useEffect(() => {
     loadProducts()
+
+    const loadCurrency = async () => {
+      const res = await getCurrentOrganizationAction()
+      if (res.success && res.data) {
+        setCurrency(res.data.currency || "USD")
+      }
+    }
+    loadCurrency()
   }, [])
+
+  const formatCurrency = (amount: number, code: string) => {
+    const formatters: Record<string, string> = {
+      USD: "$",
+      BOB: "Bs",
+      ARS: "$",
+      MXN: "$",
+      CLP: "$",
+      COP: "$",
+      PEN: "S/.",
+      EUR: "€",
+    }
+    const symbol = formatters[code.toUpperCase()] || code
+    return `${symbol} ${amount.toFixed(2)}`
+  }
 
   const handleOpenCreate = () => {
     setEditingProduct(null)
@@ -194,7 +219,7 @@ export default function ProductsPage() {
                 <tr key={product.id} className="hover:bg-muted/10 transition-colors">
                   <td className="p-4 font-mono text-sm font-semibold">{product.sku}</td>
                   <td className="p-4 font-medium">{product.name}</td>
-                  <td className="p-4 font-semibold text-primary">${product.price.toFixed(2)}</td>
+                  <td className="p-4 font-semibold text-primary">{formatCurrency(product.price, currency)}</td>
                   <td className="p-4">
                     <div className="flex flex-wrap gap-1.5">
                       {product.variants.map((v, idx) => {
