@@ -122,8 +122,9 @@ export class GoogleSheetsService {
       })
 
       return { success: true, rowsSynced: rows.length - 1 }
-    } catch (error: any) {
-      throw new Error(`Fallo al sincronizar hoja de cálculo: ${error.message}`)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      throw new Error(`Fallo al sincronizar hoja de cálculo: ${errorMessage}`)
     }
   }
 
