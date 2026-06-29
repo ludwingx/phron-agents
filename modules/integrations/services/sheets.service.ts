@@ -118,7 +118,7 @@ export class GoogleSheetsService {
           })
         }
       }, {
-        timeout: 30000
+        timeout: 180000
       })
 
       return { success: true, rowsSynced: rows.length - 1 }
