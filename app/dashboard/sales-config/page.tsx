@@ -112,7 +112,10 @@ export default function SalesConfigPage() {
         description: "Los cambios se aplicarán inmediatamente en las próximas conversaciones.",
       })
     } else {
-      const errorMsg = [resConfig.error, resAgent.error].filter(Boolean).join(" | ")
+      const errorMsg = [
+        !resConfig.success ? resConfig.error : null,
+        !resAgent.success ? resAgent.error : null,
+      ].filter(Boolean).join(" | ")
       toast.error(errorMsg || "Error al guardar la configuración")
     }
     setIsSaving(false)
