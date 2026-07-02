@@ -1,6 +1,103 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { AgentExecutorService } from "@/modules/agents/services/agent-executor.service";
+import { haversineDistance } from "@/lib/haversine";
+import type { SalesConfig } from "@/modules/sales-config/types";
+import { DEFAULT_SALES_CONFIG } from "@/modules/sales-config/types";
+
+// ─── Telegram API helpers ──────────────────────────────────────
+
+async function sendTelegramMessage(token: string, chatId: string, text: string) {
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text }),
+  });
+}
+
+async function sendTelegramLocation(
+  token: string,
+  chatId: string,
+  latitude: number,
+  longitude: number
+) {
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendLocation`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, latitude, longitude }),
+  });
+  if (!res.ok) {
+    console.error("Fallo al enviar ubicación a Telegram:", await res.text());
+  }
+}
+
+async function sendTelegramPhoto(
+  token: string,
+  chatId: string,
+  photoUrl: string,
+  caption?: string
+) {
+  const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      photo: photoUrl,
+      ...(caption ? { caption } : {}),
+    }),
+  });
+  if (!res.ok) {
+    console.error("Fallo al enviar foto a Telegram:", await res.text());
+  }
+}
+
+// ─── Load sales config for the org ─────────────────────────────
+
+async function loadSalesConfig(organizationId: string): Promise<SalesConfig> {
+  const integration = await prisma.integration.findFirst({
+    where: { organizationId, type: "SALES_CONFIG" },
+  });
+  if (!integration) return { ...DEFAULT_SALES_CONFIG };
+  return {
+    ...DEFAULT_SALES_CONFIG,
+    ...(integration.config as Partial<SalesConfig>),
+  };
+}
+
+// ─── Process special markers in AI response ────────────────────
+
+async function processSpecialMarkers(
+  botReply: string,
+  token: string,
+  chatId: string,
+  salesConfig: SalesConfig
+) {
+  // Send location if marker present
+  if (
+    botReply.includes("[SEND_LOCATION]") &&
+    salesConfig.businessLatitude != null &&
+    salesConfig.businessLongitude != null
+  ) {
+    await sendTelegramLocation(
+      token,
+      chatId,
+      salesConfig.businessLatitude,
+      salesConfig.businessLongitude
+    );
+  }
+
+  // Send QR photo if marker present
+  if (botReply.includes("[SEND_QR]") && salesConfig.paymentQrUrl) {
+    await sendTelegramPhoto(
+      token,
+      chatId,
+      salesConfig.paymentQrUrl,
+      salesConfig.paymentQrLabel || "Escanea para pagar"
+    );
+  }
+}
+
+// ─── Main webhook handler ──────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,23 +121,74 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-
-    // Las actualizaciones de Telegram pueden ser de varios tipos, nos interesan los mensajes de texto
     const message = body.message;
-    if (!message || !message.text || !message.chat || !message.from) {
-      // Retornamos 200 para que Telegram no reintente con actualizaciones no soportadas (ej: imágenes, ubicaciones, etc.)
-      return NextResponse.json({ success: true, message: "Ignored non-text or empty update" });
+
+    if (!message || !message.chat || !message.from) {
+      return NextResponse.json({ success: true, message: "Ignored empty update" });
     }
 
     const chatId = message.chat.id.toString();
     const telegramId = message.from.id.toString();
     const firstName = message.from.first_name || "";
     const lastName = message.from.last_name || "";
-    const fullName = [firstName, lastName].filter(Boolean).join(" ") || `Usuario Telegram (${telegramId})`;
-    const textContent = message.text;
-    const messageId = message.message_id.toString();
-
+    const fullName =
+      [firstName, lastName].filter(Boolean).join(" ") || `Usuario Telegram (${telegramId})`;
     const organizationId = channel.organizationId;
+
+    // Determine message content and optional location context
+    let textContent: string;
+    let locationContext: string | undefined;
+
+    if (message.location) {
+      // Customer shared their location — calculate shipping distance
+      const customerLat = message.location.latitude;
+      const customerLon = message.location.longitude;
+      const salesConfig = await loadSalesConfig(organizationId);
+
+      if (
+        salesConfig.shippingEnabled &&
+        salesConfig.businessLatitude != null &&
+        salesConfig.businessLongitude != null
+      ) {
+        const distance = haversineDistance(
+          salesConfig.businessLatitude,
+          salesConfig.businessLongitude,
+          customerLat,
+          customerLon
+        );
+
+        // Find matching shipping zone
+        const matchedZone = salesConfig.shippingZones.find(
+          (z) => distance >= z.minKm && distance <= z.maxKm
+        );
+
+        if (matchedZone) {
+          locationContext = `El cliente compartió su ubicación. Está a ${distance} km de la tienda (${matchedZone.label}). El costo de envío a su zona es Bs. ${matchedZone.cost}.`;
+          if (
+            salesConfig.shippingFreeAbove &&
+            salesConfig.shippingFreeAbove > 0
+          ) {
+            locationContext += ` Recuerda: envío gratis en compras mayores a Bs. ${salesConfig.shippingFreeAbove}.`;
+          }
+        } else {
+          locationContext = `El cliente compartió su ubicación. Está a ${distance} km de la tienda, lo cual está FUERA de la zona de cobertura de delivery. Mensaje sugerido: "${salesConfig.outOfRangeMessage}"`;
+        }
+      } else {
+        locationContext = `El cliente compartió su ubicación (lat: ${customerLat}, lon: ${customerLon}), pero el envío por distancia no está configurado.`;
+      }
+
+      textContent = `[El cliente compartió su ubicación GPS]`;
+    } else if (message.text) {
+      textContent = message.text;
+    } else {
+      // Non-text, non-location update — ignore
+      return NextResponse.json({
+        success: true,
+        message: "Ignored non-text/non-location update",
+      });
+    }
+
+    const messageId = message.message_id.toString();
 
     // 2. Buscar o crear el cliente usando telegramId
     let customer = await prisma.customer.findUnique({
@@ -83,7 +231,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Si la conversación está pausada (ej. transferida a agente humano), guardamos el mensaje pero no responde la IA
+    // Si la conversación está pausada (transferida a agente humano), guardamos el mensaje pero no responde la IA
     if (conversation.status !== "ACTIVE_IA") {
       await prisma.message.create({
         data: {
@@ -95,7 +243,6 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Actualizar updatedAt de la conversación
       await prisma.conversation.update({
         where: { id: conversation.id },
         data: { updatedAt: new Date() },
@@ -110,26 +257,41 @@ export async function POST(req: NextRequest) {
       conversationId: conversation.id,
       content: textContent,
       providerMessageId: `tg-${messageId}`,
+      locationContext,
     });
 
-    // 5. Enviar la respuesta de vuelta a Telegram
-    const tgResponse = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: botReply,
-      }),
-    });
+    // 5. Clean markers and send the text response
+    const cleanReply = botReply
+      .replace(/\[SEND_LOCATION\]/g, "")
+      .replace(/\[SEND_QR\]/g, "")
+      .trim();
 
-    if (!tgResponse.ok) {
-      console.error("Fallo al enviar mensaje a Telegram:", await tgResponse.text());
+    if (cleanReply) {
+      const tgResponse = await fetch(
+        `https://api.telegram.org/bot${token}/sendMessage`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, text: cleanReply }),
+        }
+      );
+
+      if (!tgResponse.ok) {
+        console.error("Fallo al enviar mensaje a Telegram:", await tgResponse.text());
+      }
     }
 
-    return NextResponse.json({ success: true, reply: botReply });
+    // 6. Process special markers (send location map, QR photo, etc.)
+    const salesConfig = await loadSalesConfig(organizationId);
+    await processSpecialMarkers(botReply, token, chatId, salesConfig);
+
+    return NextResponse.json({ success: true, reply: cleanReply });
   } catch (error) {
     console.error("Error en Webhook de Telegram:", error);
     // Siempre retornar 200 a Telegram para evitar bucles de reintento si falla OpenRouter o la DB
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal Error" }, { status: 200 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal Error" },
+      { status: 200 }
+    );
   }
 }

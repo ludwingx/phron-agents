@@ -22,7 +22,8 @@ import {
   Message01Icon,
   ShoppingBagIcon,
   RoboticIcon,
-  Store01Icon
+  Store01Icon,
+  SaleTag01Icon
 } from "@hugeicons/core-free-icons"
 
 interface UserSession {
@@ -86,10 +87,16 @@ export function AppSidebar({
       isActive: pathname === "/dashboard",
     },
     {
-      title: "Chatbot IA",
+      title: "Playground de Pruebas",
       url: "/dashboard/agents",
       icon: <HugeiconsIcon icon={RoboticIcon} strokeWidth={2} />,
       isActive: pathname.startsWith("/dashboard/agents"),
+    },
+    {
+      title: "Ajustes del Agente",
+      url: "/dashboard/sales-config",
+      icon: <HugeiconsIcon icon={SaleTag01Icon} strokeWidth={2} />,
+      isActive: pathname.startsWith("/dashboard/sales-config"),
     },
     {
       title: "Chats en Vivo",
