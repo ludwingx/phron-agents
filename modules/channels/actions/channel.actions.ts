@@ -51,6 +51,24 @@ export async function updateTelegramChannelAction(data: {
 }): Promise<ActionResponse> {
   try {
     await ChannelService.updateTelegramChannel(data)
+
+    // Registrar el webhook automáticamente con Telegram si tenemos una URL de la app
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://phronagents.com"
+    if (appUrl.startsWith("https://")) {
+      const webhookUrl = `${appUrl}/api/webhooks/telegram?token=${data.accessToken}`
+      const tgRes = await fetch(`https://api.telegram.org/bot${data.accessToken}/setWebhook`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: webhookUrl })
+      })
+
+      if (!tgRes.ok) {
+        console.error("Fallo al registrar webhook en Telegram:", await tgRes.text())
+      } else {
+        console.log("Webhook de Telegram registrado correctamente:", webhookUrl)
+      }
+    }
+
     revalidatePath("/dashboard/settings")
     return { success: true }
   } catch (error: unknown) {
